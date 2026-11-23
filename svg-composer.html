@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>SVG Композер</title>
+<style>
+  [hidden] { display: none !important; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+         background: #f4f5f7; color: #1a1a1a; height: 100vh; overflow: hidden; }
+  #landing { display: flex; flex-direction: column; align-items: center;
+             justify-content: center; height: 100vh; padding: 40px;
+             text-align: center; background: linear-gradient(135deg, #d8d4ff 0%, #fcd8c3 100%); }
+  #landing h1 { font-size: 42px; margin-bottom: 16px; font-weight: 800; color: #1a1a2e; }
+  #landing p { font-size: 15px; line-height: 1.7; max-width: 640px; margin-bottom: 28px; }
+  #landing code { display: inline-block; background: rgba(255,255,255,.7); padding: 2px 8px; border-radius: 4px; font-size: 13px; margin: 2px 0; }
+  #landing .btn-pick { padding: 16px 36px; background: #5e53cf; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; display: inline-block; transition: .2s; box-shadow: 0 4px 14px rgba(94,83,207,.35); font-family: inherit; }
+  #landing .btn-pick:hover { background: #4a40b8; transform: translateY(-2px); }
+  #landing input[type=file] { display: none; }
+  #landing .hint { margin-top: 20px; font-size: 12px; color: #444; max-width: 520px; line-height: 1.6; }
+  #status-box { margin-top: 24px; padding: 14px 20px; border-radius: 8px; max-width: 600px; font-size: 14px; line-height: 1.6; display: none; }
+  #status-box.info { background: rgba(255,255,255,.8); color: #1a1a2e; display: block; }
+  #status-box.error { background: #fee; color: #a00; display: block; border: 1px solid #fbb; }
+  #status-box.success { background: #efe; color: #0a0; display: block; border: 1px solid #bfb; }
+  #app { display: flex; height: 100vh; }
+  .sidebar { width: 340px; background: white; border-right: 1px solid #e0e0e0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; }
+  .section { display: flex; flex-direction: column; gap: 8px; }
+  .section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #666; font-weight: 700; }
+  .section input { width: 100%; padding: 9px 12px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 13px; font-family: inherit; outline: none; }
+  .section input:focus { border-color: #5e53cf; }
+  .btn { padding: 9px 14px; border: none; border-radius: 6px; background: #5e53cf; color: white; font-size: 13px; font-weight: 600; cursor: pointer; transition: .15s; font-family: inherit; }
+  .btn:hover { background: #4a40b8; }
+  .btn.secondary { background: #eef0f4; color: #333; }
+  .btn.secondary:hover { background: #e0e3e9; }
+  .btn.danger { background: #ef4444; }
+  .btn.danger:hover { background: #dc2626; }
+  .btn.success { background: #22c55e; }
+  .btn.success:hover { background: #16a34a; }
+  .btn.full { width: 100%; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { flex: 1; padding: 8px; border: none; border-radius: 6px; background: #f0f1f4; color: #666; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600; }
+  .tabs button.active { background: #5e53cf; color: white; }
+  .lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow-y: auto; padding: 2px; }
+  .lib-item { background: #fafbfc; border: 1.5px solid #eee; border-radius: 6px; padding: 6px; cursor: pointer; transition: .15s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .lib-item:hover { border-color: #5e53cf; background: #f5f3ff; }
+  .lib-item svg { width: 100%; height: 48px; pointer-events: none; }
+  .lib-item .name { font-size: 10px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .palette-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .palette-btn { padding: 6px 10px; border: 2px solid transparent; border-radius: 6px; background: #f0f1f4; cursor: pointer; font-size: 11px; font-family: inherit; font-weight: 600; }
+  .palette-btn.active { border-color: #5e53cf; background: #ede9ff; }
+  .bg-row { display: flex; gap: 8px; }
+  .bg-swatch { width: 44px; height: 44px; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+  .bg-swatch.active { border-color: #1a1a2e; transform: scale(1.05); }
+  #layers { list-style: none; max-height: 200px; overflow-y: auto; }
+  #layers li { padding: 8px 10px; background: #fafbfc; border-radius: 5px; font-size: 12px; cursor: pointer; margin-bottom: 3px; display: flex; justify-content: space-between; align-items: center; border: 1.5px solid transparent; }
+  #layers li:hover { background: #f0f1f4; }
+  #layers li.active { background: #ede9ff; border-color: #5e53cf; font-weight: 600; }
+  #layers .cat { font-size: 10px; color: #999; background: #eee; padding: 2px 6px; border-radius: 4px; }
+  #layers li.active .cat { background: #d8d4ff; color: #5e53cf; }
+  .canvas-area { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 12px; overflow: hidden; min-width: 0; }
+  .canvas-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 16px; }
+  #canvas { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-select: none; touch-action: none; border-radius: 6px; }
+  .toolbar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="landing">
+  <h1>SVG Композер</h1>
+  <p>Загрузите папку с SVG-иллюстрациями. Внутри должны быть подпапки:<br><br>
+    <code>Размер L / Главные объекты / *.svg</code><br>
+    <code>Размер L / Фоновые объекты / *.svg</code><br>
+    <code>Размер S / ...</code>
+  </p>
+  <button class="btn-pick" id="pickClassicBtn">📁 Способ 1: Выбрать папку</button>
+  <input type="file" id="folderInput" webkitdirectory directory multiple>
+  <div style="height: 12px;"></div>
+  <button class="btn-pick" id="pickModernBtn" style="background: #22c55e; box-shadow: 0 4px 14px rgba(34,197,94,.35);">📁 Способ 2: Через проводник</button>
+  <div class="hint">💡 Если Способ 1 не сработал — попробуйте Способ 2.<br>Откройте консоль клавишей <b>F12</b>, чтобы видеть, что происходит.</div>
+  <div id="status-box"></div>
+</div>
+
+<div id="app" hidden>
+  <aside class="sidebar">
+    <div class="section"><h3>Размер</h3><div class="tabs" id="sizeTabs"><button data-size="L" class="active">Размер L</button><button data-size="S">Размер S</button></div></div>
+    <div class="section"><h3>Сценарий 1 — метафора</h3><input id="metaphorInput" placeholder="напр.: безопасный бизнес"><button class="btn full" id="matchBtn">✨ Собрать автоматически</button></div>
+    <div class="section"><h3>Сценарий 2 — поиск</h3><input id="searchInput" placeholder="напр.: лампа"><button class="btn full" id="searchBtn">🔍 Найти</button></div>
+    <div class="section"><h3>Библиотека</h3><div class="tabs" id="libTabs"><button data-cat="main" class="active">Главные</button><button data-cat="background">Фоновые</button></div><div class="lib-grid" id="libGrid"></div></div>
+    <div class="section"><h3>Цветовая схема</h3><div class="palette-row" id="paletteRow"></div><button class="btn full" id="applyPaletteBtn" style="margin-top:6px;">🎨 Перекрасить</button><button class="btn secondary full" id="resetColorsBtn">↺ Сбросить цвета</button></div>
+    <div class="section"><h3>Фон холста</h3><div class="bg-row" id="bgRow"></div></div>
+    <div class="section"><h3>Слои</h3><ul id="layers"></ul></div>
+  </aside>
+  <main class="canvas-area">
+    <div class="canvas-wrapper"><svg id="canvas" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="toolbar">
+      <button class="btn secondary" id="rotLeft">↺ 15°</button>
+      <button class="btn secondary" id="rotRight">↻ 15°</button>
+      <button class="btn secondary" id="dupBtn">⧉ Дублировать</button>
+      <button class="btn secondary" id="delBtn">🗑 Удалить</button>
+      <button class="btn secondary" id="frontBtn">⬆ Вперёд</button>
+      <button class="btn secondary" id="backBtn">⬇ Назад</button>
+      <button class="btn danger" id="clearBtn">✕ Очистить</button>
+      <button class="btn success" id="exportBtn">⬇ Скачать SVG</button>
+    </div>
+  </main>
+</div>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const PALETTES = [
+  { name: 'Схема 1', colors: ['#1a1a1a','#5e53cf','#8781f5','#d8d4ff','#fa9b9b','#fcd2d2','#fcf4c5','#ffffff'] },
+  { name: 'Схема 2', colors: ['#1a1a1a','#bd5d27','#f5b389','#fcd8c3','#76d8d4','#c2e8e7','#fcf4c5','#ffffff'] },
+  { name: 'Схема 3', colors: ['#1a1a1a','#48bab6','#76d8d4','#c2e8e7','#5b60f5','#c0c4fb','#fbc8e3','#ffffff'] },
+];
+const BACKGROUNDS = [{ name: 'Фиолет', color: '#d8d4ff' },{ name: 'Мята', color: '#c2e8e7' },{ name: 'Персик', color: '#fcd8c3' }];
+const TAG_DICT = [
+  { keys: ['лампа','lamp'],           tags: ['лампа','свет','идея','офис','работа','освещение','творчество','вдохновение'] },
+  { keys: ['книга','book'],           tags: ['книга','чтение','знания','учеба','образование','литература','обучение','история'] },
+  { keys: ['кошел','wallet'],         tags: ['кошелек','деньги','финансы','бизнес','покупки','богатство','экономика'] },
+  { keys: ['замок','lock','padlock'], tags: ['замок','безопасность','защита','пароль','блокировка','конфиденциальность'] },
+  { keys: ['наушник','headphone'],    tags: ['наушники','музыка','звук','аудио','подкаст','развлечение','ритм'] },
+  { keys: ['пазл','puzzle'],          tags: ['пазл','головоломка','решение','интеграция','связь','команда'] },
+  { keys: ['папка','folder'],         tags: ['папка','документы','архив','файлы','работа','проект','бумаги'] },
+  { keys: ['ручка','pen'],            tags: ['ручка','письмо','творчество','подпись','заметки','автор','написание'] },
+  { keys: ['смартфон','телефон','smartphone','phone'], tags: ['смартфон','телефон','технологии','мобильный','приложение','гаджет'] },
+  { keys: ['тюльпан','цвет','tulip','flower'], tags: ['цветы','тюльпаны','ваза','весна','подарок','природа','растения'] },
+  { keys: ['ваза','vase'],            tags: ['ваза','цветы','интерьер','декор'] },
+  { keys: ['закладк','bookmark'],     tags: ['закладка','книга','отметка','чтение'] },
+];
+const state = { library: { L: { main: [], background: [] }, S: { main: [], background: [] } }, size: 'L', category: 'main', paletteIndex: 0, bgIndex: 0, objects: [], selectedId: null, nextOid: 1 };
+
+const canvasEl = document.getElementById('canvas');
+const bgRect = document.createElementNS(NS, 'rect'); bgRect.setAttribute('width', '1000'); bgRect.setAttribute('height', '700'); bgRect.setAttribute('fill', BACKGROUNDS[0].color); canvasEl.appendChild(bgRect);
+const objectsLayer = document.createElementNS(NS, 'g'); canvasEl.appendChild(objectsLayer);
+const overlayLayer = document.createElementNS(NS, 'g'); overlayLayer.setAttribute('pointer-events', 'none'); canvasEl.appendChild(overlayLayer);
+
+function getTags(filename) { const lower = filename.toLowerCase(); for (const e of TAG_DICT) { if (e.keys.some(k => lower.includes(k))) return e.tags; } return [lower.replace(/\.svg$/i, '')]; }
+function normHex(h) { h = h.trim().toLowerCase(); if (h.length === 4 && h[0] === '#') return '#' + h[1]+h[1] + h[2]+h[2] + h[3]+h[3]; return h; }
+function lum(hex) { hex = normHex(hex); if (hex.length !== 7) return 0; return 0.2126*parseInt(hex.slice(1,3),16) + 0.7152*parseInt(hex.slice(3,5),16) + 0.0722*parseInt(hex.slice(5,7),16); }
+function svgPoint(e) { const p = canvasEl.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; const m = canvasEl.getScreenCTM(); return m ? p.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+function showStatus(msg, type = 'info') { const box = document.getElementById('status-box'); box.className = type; box.innerHTML = msg; }
+function hideStatus() { document.getElementById('status-box').className = ''; document.getElementById('status-box').style.display = 'none'; }
+
+function detectStructure(path) {
+  const parts = path.split('/').slice(0, -1);
+  let size = null, cat = null;
+  for (const p of parts) {
+    const l = p.toLowerCase().trim(), norm = l.replace(/[_\-\s]+/g, ' ').trim();
+    if (!size) {
+      if (/\b(размер|size)\s*l\b/.test(norm) || /^l$/.test(norm) || norm === 'large' || norm === 'big' || /больш/.test(norm) || /\bl\s*$/.test(norm)) size = 'L';
+      else if (/\b(размер|size)\s*s\b/.test(norm) || /^s$/.test(norm) || norm === 'small' || norm === 'mini' || /мал(ый|еньк)/.test(norm) || /\bs\s*$/.test(norm)) size = 'S';
+    }
+    if (!cat) {
+      if (norm === 'main' || norm === 'primary' || /главн|основн|main/.test(norm)) cat = 'main';
+      else if (norm === 'background' || norm === 'bg' || norm === 'backgrounds' || norm === 'back' || norm === 'backdrop' || /фонов|фон\b|фоны|фоновый|фоновые|background|\bbg\b|back/.test(norm)) cat = 'background';
+    }
+  }
+  return { size, cat };
+}
+
+function parseSVG(text) {
+  text = text.replace(/^\uFEFF/, '');
+  try { const doc = new DOMParser().parseFromString(text, 'image/svg+xml'); if (!doc.querySelector('parsererror')) { const root = doc.documentElement; if (root && root.localName === 'svg') return root; } } catch (e) {}
+  try { const cleaned = text.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/<\?xml[^?]*\?>/gi, ''); const doc = new DOMParser().parseFromString(cleaned, 'image/svg+xml'); const root = doc.documentElement; if (root && root.localName === 'svg') return root; } catch (e) {}
+  try { const div = document.createElement('div'); div.innerHTML = text; const svg = div.querySelector('svg'); if (svg) return svg; } catch (e) {}
+  return null;
+}
+
+async function processFileEntries(entries) {
+  const svgEntries = entries.filter(e => e.file.name.toLowerCase().endsWith('.svg'));
+  if (!svgEntries.length) { showStatus(`<b>❌ SVG-файлы не найдены</b><br>Всего файлов: ${entries.length}`, 'error'); return; }
+  showStatus(`⏳ Обрабатываю ${svgEntries.length} SVG...`);
+  const lib = { L: { main: [], background: [] }, S: { main: [], background: [] } };
+  const skipped = [];
+  for (const { file, path } of svgEntries) {
+    try {
+      const { size, cat } = detectStructure(path);
+      if (!size || !cat) { skipped.push({ path, reason: 'папка не распознана' }); continue; }
+      const text = await file.text(); const svgEl = parseSVG(text);
+      if (!svgEl) { skipped.push({ path, reason: 'не удалось распарсить' }); continue; }
+      let vb = svgEl.getAttribute('viewBox'), w = 100, h = 100;
+      if (vb) { const p = vb.split(/[\s,]+/).map(Number); w = p[2] || 100; h = p[3] || 100; } else { w = parseFloat(svgEl.getAttribute('width')) || 100; h = parseFloat(svgEl.getAttribute('height')) || 100; }
+      lib[size][cat].push({ name: file.name.replace(/\.svg$/i, ''), text, svgEl, w, h, tags: getTags(file.name) });
+    } catch (err) { skipped.push({ path, reason: err.message }); }
+  }
+  
+  console.log('=== РЕЗУЛЬТАТ ===');
+  console.log('L/main:', lib.L.main.length, 'L/background:', lib.L.background.length);
+  console.log('S/main:', lib.S.main.length, 'S/background:', lib.S.background.length);
+
+  // ФОЛБЭК: если S/background пуст, берем L/background
+  if (lib.S.background.length === 0 && lib.L.background.length > 0) {
+    console.warn('⚠️ S/background пуст, использую L/background как fallback');
+    lib.S.background = lib.L.background.map(item => ({ ...item, name: item.name + ' (L)' }));
+  }
+
+  const total = lib.L.main.length + lib.L.background.length + lib.S.main.length + lib.S.background.length;
+  if (total === 0) { showStatus(`<b>❌ Не удалось загрузить ни одного SVG</b><br>Пропущено: ${skipped.length}`, 'error'); return; }
+  state.library = lib;
+  showStatus(`✅ Загружено ${total} SVG. Открываю редактор...`, 'success');
+  setTimeout(() => { document.getElementById('landing').hidden = true; document.getElementById('app').hidden = false; renderLibrary(); renderPalettes(); renderBackgrounds(); renderLayers(); hideStatus(); }, 400);
+}
+
+document.getElementById('folderInput').addEventListener('change', async (ev) => {
+  const files = Array.from(ev.target.files);
+  await processFileEntries(files.map(f => ({ file: f, path: f.webkitRelativePath || f.name })));
+});
+document.getElementById('pickClassicBtn').onclick = () => document.getElementById('folderInput').click();
+document.getElementById('pickModernBtn').onclick = async () => {
+  if (!window.showDirectoryPicker) { showStatus('<b>Способ 2 не поддерживается.</b>', 'error'); return; }
+  try {
+    showStatus('⏳ Выберите папку...'); const dirHandle = await window.showDirectoryPicker(); const entries = [];
+    await readDirRecursive(dirHandle, dirHandle.name, entries); await processFileEntries(entries);
+  } catch (err) { if (err.name !== 'AbortError') showStatus(`<b>Ошибка:</b> ${err.message}`, 'error'); }
+};
+async function readDirRecursive(dirHandle, path, out) {
+  for await (const entry of dirHandle.values()) {
+    const fullPath = path + '/' + entry.name;
+    if (entry.kind === 'file') { if (entry.name.toLowerCase().endsWith('.svg')) out.push({ file: await entry.getFile(), path: fullPath }); }
+    else { await readDirRecursive(entry, fullPath, out); }
+  }
+}
+
+function renderLibrary() {
+  const grid = document.getElementById('libGrid'); grid.innerHTML = '';
+  const items = state.library[state.size][state.category] || [];
+  if (!items.length) { grid.innerHTML = '<div style="grid-column:1/-1;padding:16px;text-align:center;color:#999;font-size:12px;">Нет объектов</div>'; return; }
+  items.forEach(item => {
+    const div = document.createElement('div'); div.className = 'lib-item'; div.title = item.name;
+    const preview = item.svgEl.cloneNode(true);
+    preview.removeAttribute('width'); preview.removeAttribute('height');
+    preview.setAttribute('viewBox', `0 0 ${item.w} ${item.h}`); preview.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    div.appendChild(preview);
+    const label = document.createElement('span'); label.className = 'name'; label.textContent = item.name; div.appendChild(label);
+    div.onclick = () => addObject(item); grid.appendChild(div);
+  });
+}
+
+function addObject(libItem, autoPos) {
+  const isBg = state.library[state.size].background.includes(libItem);
+  const id = state.nextOid++;
+  const x = autoPos?.x ?? (isBg ? 500 : 250 + Math.random() * 500);
+  const y = autoPos?.y ?? (isBg ? 350 : 200 + Math.random() * 300);
+  const baseScale = isBg ? 1.4 : 0.8;
+  const group = document.createElementNS(NS, 'g'); group.dataset.oid = id; group.style.cursor = 'move';
+  const content = libItem.svgEl.cloneNode(true);
+  content.setAttribute('x', -libItem.w / 2); content.setAttribute('y', -libItem.h / 2);
+  content.setAttribute('width', libItem.w); content.setAttribute('height', libItem.h); content.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  group.appendChild(content);
+  const obj = { id, name: libItem.name, category: isBg ? 'background' : 'main', x, y, rot: 0, scale: baseScale, group, content };
+  applyTransform(obj);
+  if (isBg) group.setAttribute('opacity', '0.45');
+  if (isBg) { objectsLayer.insertBefore(group, objectsLayer.firstChild); state.objects.unshift(obj); }
+  else { objectsLayer.appendChild(group); state.objects.push(obj); }
+  group.addEventListener('pointerdown', (e) => onObjectPointerDown(e, obj));
+  if (!isBg) select(obj.id);
+  renderLayers();
+}
+
+function applyTransform(obj) { obj.group.setAttribute('transform', `translate(${obj.x},${obj.y}) rotate(${obj.rot}) scale(${obj.scale})`); }
+function localToWorld(px, py, obj) { const sx = px * obj.scale, sy = py * obj.scale; const rad = obj.rot * Math.PI / 180; return { x: sx * Math.cos(rad) - sy * Math.sin(rad) + obj.x, y: sx * Math.sin(rad) + sy * Math.cos(rad) + obj.y }; }
+
+let dragState = null;
+function select(id) { state.selectedId = id; renderOverlay(); renderLayers(); }
+function deselect() { state.selectedId = null; renderOverlay(); renderLayers(); }
+function getSelected() { return state.objects.find(o => o.id === state.selectedId); }
+function onObjectPointerDown(e, obj) {
+  e.stopPropagation(); select(obj.id); const start = svgPoint(e);
+  dragState = { type: 'move', obj, startPt: start, startX: obj.x, startY: obj.y };
+  canvasEl.setPointerCapture?.(e.pointerId); e.preventDefault();
+}
+
+canvasEl.addEventListener('pointermove', (e) => {
+  if (!dragState) return;
+  const pt = svgPoint(e);
+  if (dragState.type === 'move') {
+    const dx = pt.x - dragState.startPt.x; const dy = pt.y - dragState.startPt.y;
+    dragState.obj.x = dragState.startX + dx; dragState.obj.y = dragState.startY + dy;
+    applyTransform(dragState.obj); renderOverlay();
+  } else if (dragState.type === 'rotate') {
+    const o = dragState.obj;
+    o.rot = Math.atan2(pt.y - o.y, pt.x - o.x) * 180 / Math.PI - dragState.startAngleOffset;
+    applyTransform(o); renderOverlay();
+  } else if (dragState.type === 'scale') {
+    const o = dragState.obj; const dist = Math.hypot(pt.x - o.x, pt.y - o.y);
+    o.scale = Math.max(0.1, dragState.startScale * (dist / dragState.startDist));
+    applyTransform(o); renderOverlay();
+  }
+});
+
+canvasEl.addEventListener('pointerup', () => { dragState = null; });
+canvasEl.addEventListener('pointercancel', () => { dragState = null; });
+canvasEl.addEventListener('pointerdown', (e) => { if (e.target === canvasEl || e.target === bgRect) deselect(); });
+
+function renderOverlay() {
+  overlayLayer.innerHTML = '';
+  const obj = getSelected(); if (!obj) return;
+  let bb; try { bb = obj.content.getBBox(); } catch { return; }
+  const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+  const corners = [{ x: bb.x - cx, y: bb.y - cy }, { x: bb.x + bb.width - cx, y: bb.y - cy }, { x: bb.x + bb.width - cx, y: bb.y + bb.height - cy }, { x: bb.x - cx, y: bb.y + bb.height - cy }];
+  const world = corners.map(c => localToWorld(c.x, c.y, obj));
+  const poly = document.createElementNS(NS, 'polygon');
+  poly.setAttribute('points', world.map(p => `${p.x},${p.y}`).join(' '));
+  poly.setAttribute('fill', 'rgba(94,83,207,0.06)'); poly.setAttribute('stroke', '#5e53cf'); poly.setAttribute('stroke-width', '1.5'); poly.setAttribute('stroke-dasharray', '5,4');
+  overlayLayer.appendChild(poly);
+  const sh = document.createElementNS(NS, 'circle');
+  sh.setAttribute('cx', world[2].x); sh.setAttribute('cy', world[2].y); sh.setAttribute('r', '8'); sh.setAttribute('fill', '#5e53cf'); sh.setAttribute('stroke', '#fff'); sh.setAttribute('stroke-width', '2');
+  sh.style.pointerEvents = 'all'; sh.style.cursor = 'nwse-resize';
+  sh.addEventListener('pointerdown', (e) => { e.stopPropagation(); const pt = svgPoint(e); dragState = { type: 'scale', obj, startDist: Math.hypot(pt.x - obj.x, pt.y - obj.y), startScale: obj.scale }; e.preventDefault(); });
+  overlayLayer.appendChild(sh);
+  const topLocal = { x: 0, y: bb.y - cy - 30 / obj.scale }; const topWorld = localToWorld(0, bb.y - cy, obj); const rotWorld = localToWorld(topLocal.x, topLocal.y, obj);
+  const line = document.createElementNS(NS, 'line');
+  line.setAttribute('x1', topWorld.x); line.setAttribute('y1', topWorld.y); line.setAttribute('x2', rotWorld.x); line.setAttribute('y2', rotWorld.y); line.setAttribute('stroke', '#5e53cf'); line.setAttribute('stroke-width', '1.5'); line.setAttribute('stroke-dasharray', '3,3');
+  overlayLayer.appendChild(line);
+  const rh = document.createElementNS(NS, 'circle');
+  rh.setAttribute('cx', rotWorld.x); rh.setAttribute('cy', rotWorld.y); rh.setAttribute('r', '9'); rh.setAttribute('fill', '#22c55e'); rh.setAttribute('stroke', '#fff'); rh.setAttribute('stroke-width', '2');
+  rh.style.pointerEvents = 'all'; rh.style.cursor = 'grab';
+  rh.addEventListener('pointerdown', (e) => { e.stopPropagation(); const pt = svgPoint(e); dragState = { type: 'rotate', obj, startAngleOffset: Math.atan2(pt.y - obj.y, pt.x - obj.x) * 180 / Math.PI - obj.rot }; e.preventDefault(); });
+  overlayLayer.appendChild(rh);
+}
+
+function renderLayers() {
+  const ul = document.getElementById('layers'); ul.innerHTML = '';
+  [...state.objects].reverse().forEach(o => {
+    const li = document.createElement('li');
+    if (o.id === state.selectedId) li.classList.add('active');
+    li.innerHTML = `<span>${o.name}</span><span class="cat">${o.category === 'main' ? 'главный' : 'фон'}</span>`;
+    li.onclick = () => select(o.id); ul.appendChild(li);
+  });
+}
+
+document.getElementById('matchBtn').onclick = () => {
+  const q = document.getElementById('metaphorInput').value.trim().toLowerCase(); if (!q) return;
+  const qwords = q.split(/[\s,.!?;:]+/).filter(Boolean);
+  const score = (item) => { let s = 0; for (const tag of item.tags) for (const w of qwords) if (tag.includes(w) || w.includes(tag)) s++; return s; };
+  const mains = state.library[state.size].main.map(item => ({ item, score: score(item) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
+  const bgs = state.library[state.size].background.map(item => ({ item, score: score(item) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 1);
+  if (!mains.length) { alert('Ничего не найдено.'); return; }
+  clearCanvas();
+  bgs.forEach(({ item }) => addObject(item, { x: 500, y: 350 }));
+  mains.forEach(({ item }, i) => { const a = (i / mains.length) * Math.PI * 2; addObject(item, { x: 500 + Math.cos(a) * 180, y: 350 + Math.sin(a) * 140 }); });
+};
+
+document.getElementById('searchBtn').onclick = () => {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase(); if (!q) return;
+  const all = [...state.library[state.size].main.map(i => ({...i, cat: 'main'})), ...state.library[state.size].background.map(i => ({...i, cat: 'background'}))];
+  const matches = all.filter(i => i.name.toLowerCase().includes(q) || i.tags.some(t => t.toLowerCase().includes(q)));
+  if (!matches.length) { alert('Ничего не найдено.'); return; }
+  const grid = document.getElementById('libGrid'); grid.innerHTML = '';
+  matches.forEach(m => {
+    const div = document.createElement('div'); div.className = 'lib-item';
+    const preview = m.svgEl.cloneNode(true); preview.removeAttribute('width'); preview.removeAttribute('height'); preview.setAttribute('viewBox', `0 0 ${m.w} ${m.h}`); div.appendChild(preview);
+    const label = document.createElement('span'); label.className = 'name'; label.textContent = m.name; div.appendChild(label);
+    div.onclick = () => addObject(m); grid.appendChild(div);
+  });
+};
+
+function renderPalettes() {
+  const row = document.getElementById('paletteRow'); row.innerHTML = '';
+  PALETTES.forEach((p, i) => {
+    const btn = document.createElement('button'); btn.className = 'palette-btn' + (i === state.paletteIndex ? ' active' : ''); btn.textContent = p.name;
+    btn.onclick = () => { state.paletteIndex = i; renderPalettes(); }; row.appendChild(btn);
+  });
+}
+document.getElementById('applyPaletteBtn').onclick = () => {
+  const palette = PALETTES[state.paletteIndex].colors;
+  state.objects.forEach(obj => { const pal = obj.category === 'background' ? [palette[0], '#ffffff', '#e0e0e0', palette[0], '#d0d0d0'] : palette; recolorByLuminance(obj, pal); });
+};
+document.getElementById('resetColorsBtn').onclick = () => {
+  state.objects.forEach(obj => { obj.content.querySelectorAll('*').forEach(el => { if (el.dataset.origFill !== undefined) { if (el.dataset.origFill === '') el.removeAttribute('fill'); else el.setAttribute('fill', el.dataset.origFill); delete el.dataset.origFill; } }); });
+};
+function recolorByLuminance(obj, palette) {
+  const uniq = new Set();
+  obj.content.querySelectorAll('*').forEach(el => { const f = el.getAttribute('fill'); if (f && f.startsWith('#') && f !== 'none') uniq.add(normHex(f)); });
+  if (!uniq.size) return;
+  const sorted = [...uniq].sort((a, b) => lum(a) - lum(b)); const map = {};
+  sorted.forEach((c, i) => { map[c] = palette[i % palette.length]; });
+  obj.content.querySelectorAll('*').forEach(el => {
+    if (el.dataset.origFill === undefined) el.dataset.origFill = el.getAttribute('fill') || '';
+    const f = el.getAttribute('fill'); if (f && f.startsWith('#')) { const n = normHex(f); if (map[n]) el.setAttribute('fill', map[n]); }
+  });
+}
+
+function renderBackgrounds() {
+  const row = document.getElementById('bgRow'); row.innerHTML = '';
+  BACKGROUNDS.forEach((b, i) => {
+    const sw = document.createElement('div'); sw.className = 'bg-swatch' + (i === state.bgIndex ? ' active' : ''); sw.style.background = b.color; sw.title = b.name;
+    sw.onclick = () => { state.bgIndex = i; bgRect.setAttribute('fill', b.color); renderBackgrounds(); }; row.appendChild(sw);
+  });
+  bgRect.setAttribute('fill', BACKGROUNDS[state.bgIndex].color);
+}
+
+document.getElementById('rotLeft').onclick = () => { const o = getSelected(); if (o) { o.rot -= 15; applyTransform(o); renderOverlay(); } };
+document.getElementById('rotRight').onclick = () => { const o = getSelected(); if (o) { o.rot += 15; applyTransform(o); renderOverlay(); } };
+document.getElementById('dupBtn').onclick = () => { const o = getSelected(); if (!o) return; const src = (o.category === 'main' ? state.library[state.size].main : state.library[state.size].background).find(x => x.name === o.name); if (src) addObject(src, { x: o.x + 40, y: o.y + 40 }); };
+document.getElementById('delBtn').onclick = () => { const o = getSelected(); if (!o) return; o.group.remove(); state.objects = state.objects.filter(x => x.id !== o.id); deselect(); };
+document.getElementById('frontBtn').onclick = () => { const o = getSelected(); if (!o) return; objectsLayer.appendChild(o.group); state.objects = state.objects.filter(x => x.id !== o.id); state.objects.push(o); renderLayers(); };
+document.getElementById('backBtn').onclick = () => { const o = getSelected(); if (!o) return; objectsLayer.insertBefore(o.group, objectsLayer.firstChild); state.objects = state.objects.filter(x => x.id !== o.id); state.objects.unshift(o); renderLayers(); };
+document.getElementById('clearBtn').onclick = () => { if (confirm('Очистить всё?')) clearCanvas(); };
+function clearCanvas() { state.objects.forEach(o => o.group.remove()); state.objects = []; state.selectedId = null; renderOverlay(); renderLayers(); }
+
+document.querySelectorAll('#sizeTabs button').forEach(b => { b.onclick = () => { document.querySelectorAll('#sizeTabs button').forEach(x => x.classList.remove('active')); b.classList.add('active'); state.size = b.dataset.size; renderLibrary(); }; });
+document.querySelectorAll('#libTabs button').forEach(b => { b.onclick = () => { document.querySelectorAll('#libTabs button').forEach(x => x.classList.remove('active')); b.classList.add('active'); state.category = b.dataset.cat; renderLibrary(); }; });
+
+document.getElementById('exportBtn').onclick = () => {
+  const clone = canvasEl.cloneNode(true);
+  Array.from(clone.children).forEach(ch => { if (ch.tagName === 'g' && ch.getAttribute('pointer-events') === 'none') ch.remove(); });
+  clone.querySelectorAll('[data-oid]').forEach(el => { el.removeAttribute('data-oid'); el.style.cursor = ''; });
+  clone.setAttribute('xmlns', NS); clone.setAttribute('width', '1000'); clone.setAttribute('height', '700'); clone.setAttribute('viewBox', '0 0 1000 700');
+  const svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `композиция_${Date.now()}.svg`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+</script>
+</body>
+</html>
